@@ -201,7 +201,16 @@ export default function Home() {
 }
 
 function HomeScreen({ stars, learned, installed, go, customTasks, doneTasks, taskText, setTaskText, addTask, toggleTask, removeTask }: { stars: number; learned: number; installed: boolean; go: (mode: Mode) => void; customTasks: string[]; doneTasks: string[]; taskText: string; setTaskText: (value: string) => void; addTask: (event: FormEvent) => void; toggleTask: (task: string) => void; removeTask: (task: string) => void }) {
-  const date = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(new Date());
+  // Format the date after hydration so WebKit and the server cannot disagree
+  // about locale spacing or timezone and trigger React's error overlay.
+  const [date, setDate] = useState("今天");
+  useEffect(() => {
+    setDate(new Intl.DateTimeFormat("zh-CN", {
+      month: "long",
+      day: "numeric",
+      weekday: "long",
+    }).format(new Date()));
+  }, []);
   return <>
     <section className="home-hero"><div><span className="date-pill">🌤️ {date}</span><h1>出发吧，小小探索家！</h1><p>今天想先去哪个学习岛？</p><div className="hero-badges"><span>已认识 <b>{learned}</b> 个字</span><span>收集 <b>{stars}</b> 颗星</span></div></div><div className="mascot" aria-hidden="true"><span>🌱</span><i>今天也要加油呀！</i></div></section>
     {!installed && <section className="install-tip"><span>📲</span><div><b>装到 iPad 主屏幕</b><p>Safari 打开后，点“分享” →“添加到主屏幕”→ 打开“作为网页 App”。</p></div></section>}
