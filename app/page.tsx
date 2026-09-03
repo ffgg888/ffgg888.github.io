@@ -124,7 +124,7 @@ const poems = [
 ];
 
 const idioms = [
-  { title: "一心一意", meaning: "专心做一件事，不分心。", example: "小芽一心一意地练习写字。", icon: "🎯" },
+  { title: "一心一意", meaning: "专心做一件事，不分心。", example: "小钺钺一心一意地练习写字。", icon: "🎯" },
   { title: "井井有条", meaning: "形容整齐、有次序。", example: "她把书桌收拾得井井有条。", icon: "🧺" },
   { title: "助人为乐", meaning: "把帮助别人当作快乐的事。", example: "同学摔倒了，我扶他起来。", icon: "🤝" },
   { title: "天天向上", meaning: "每天努力，不断取得进步。", example: "认真学习，天天向上。", icon: "🚀" },
@@ -135,7 +135,8 @@ const idioms = [
 ];
 
 const rewards = [{ name: "美味小零食", stars: 10, icon: "🍪" }, { name: "心愿小玩具", stars: 20, icon: "🧸" }, { name: "儿童乐园", stars: 30, icon: "🎡" }];
-const storeKey = "xiaoya-free-learning-v2";
+const storeKey = "xiaoyueyue-free-learning-v3";
+const legacyStoreKey = "xiaoya-free-learning-v2";
 
 function localDateKey() {
   const date = new Date();
@@ -209,7 +210,7 @@ export default function Home() {
 
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(storeKey) || "{}");
+      const saved = JSON.parse(localStorage.getItem(storeKey) || localStorage.getItem(legacyStoreKey) || "{}");
       // This one-time hydration restores the child's local-only profile.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setStars(saved.stars || 0); setLearned(saved.learned || []);
@@ -367,7 +368,7 @@ export default function Home() {
 
   return <main className="app-shell">
     <header className="topbar">
-      <button className="brand" onClick={() => go("home")}><span className="brand-mark">芽</span><span><b>小芽学习屋</b><small>永久免费 · 快乐成长</small></span></button>
+      <button className="brand" onClick={() => go("home")}><span className="brand-mark">钺</span><span><b>小钺钺学习屋</b><small>永久免费 · 快乐成长</small></span></button>
       <nav aria-label="主要导航">
         <button className={mode === "home" ? "active" : ""} onClick={() => go("home")}>学习岛</button>
         <button className={mode === "reading" ? "active" : ""} onClick={() => go("reading")}>阅读馆</button>
@@ -384,11 +385,11 @@ export default function Home() {
         <div className="lesson-top"><div><span className="kicker">一年级识字 · 第 {lesson + 1} 课 · 第 {charIndex + 1}/10 字</span><h1>玩、认、练、写、说，闯过五关</h1></div><div className="step-dots" aria-label={`本课进度 ${charIndex + 1}/10`}>{hanziLessons[lesson].map((_, i) => <span className={i <= charIndex ? "on" : ""} key={i} />)}</div></div>
         <div className="learning-steps" aria-label="识字步骤">{([['play','🎮 玩'],['learn','👀 认'],['practice','🎯 练'],['write','✍️ 写'],['speak','🗣️ 说']] as [HanziStage,string][]).map(([key, label], index) => { const order = ["play", "learn", "practice", "write", "speak", "done"]; const currentOrder = order.indexOf(hanziStage); return <span key={key} className={hanziStage === key ? "active" : currentOrder > index ? "complete" : ""}>{currentOrder > index ? "✓" : index + 1} {label}</span>; })}</div>
         <div className="hanzi-stage-wrap">
-          {hanziStage === "play" && <article className="stage-card game-stage"><MascotGuide name="小芽兔" text={`${currentChar.word}里藏着“${currentChar.char}”，快帮我找到它！`} /><div className="story-scene"><span className="scene-spark">✨</span><span className="stage-emoji">{currentChar.icon}</span><span className="scene-spark">✨</span></div><span className="kicker">第一关 · 玩一玩</span><h2>找到“{currentChar.word}”里的字</h2><div className="character-choices">{playChoices.map((choice, index) => <button className={`float-${index + 1}`} key={choice} disabled={Boolean(feedback)} onClick={() => answerPlay(choice)}><small>⭐</small>{choice}</button>)}</div><p>看一看图片和词语，点出正确的汉字</p></article>}
+          {hanziStage === "play" && <article className="stage-card game-stage"><MascotGuide name="钺钺兔" text={`${currentChar.word}里藏着“${currentChar.char}”，快帮我找到它！`} /><div className="story-scene"><span className="scene-spark">✨</span><span className="stage-emoji">{currentChar.icon}</span><span className="scene-spark">✨</span></div><span className="kicker">第一关 · 玩一玩</span><h2>找到“{currentChar.word}”里的字</h2><div className="character-choices">{playChoices.map((choice, index) => <button className={`float-${index + 1}`} key={choice} disabled={Boolean(feedback)} onClick={() => answerPlay(choice)}><small>⭐</small>{choice}</button>)}</div><p>看一看图片和词语，点出正确的汉字</p></article>}
           {hanziStage === "learn" && <article className="learn-card stage-card"><MascotGuide name="虎教练" text="点一下喇叭，和我读两遍！" /><span className="scene-icon">{currentChar.icon}</span><button className="sound pulse-button" onClick={() => speak(`${currentChar.char}，${currentChar.word}。${currentChar.sentence}`)}>🔊 点我朗读</button><div className="big-char reveal-char">{currentChar.char}</div><div className="char-pinyin">{currentChar.pinyin}</div><b>{currentChar.word}</b><p>{currentChar.sentence}</p><button className="primary" onClick={finishLearning}>我认识了，去练一练 →</button></article>}
           {hanziStage === "practice" && <article className="stage-card practice-stage"><MascotGuide name="虎教练" text={`把含有“${currentChar.char}”的词语投进能量箱！`} /><span className="kicker">第三关 · 练一练</span><div className="practice-char">{currentChar.char}</div><h2>哪个词语能点亮星星？</h2><div className="word-choices">{practiceChoices.map((choice) => <button key={choice} disabled={Boolean(feedback)} onClick={() => answerPractice(choice)}><span>🍯</span>{choice}</button>)}</div><div className="energy-chest">🎁 汉字能量箱</div></article>}
           {(hanziStage === "write") && <TracePad character={currentChar.char} active onComplete={finishWriting} />}
-          {(hanziStage === "speak" || hanziStage === "done") && <article className={`stage-card speak-stage ${hanziStage === "done" ? "completed-card celebration" : ""}`}><MascotGuide name="小芽兔和虎教练" text={hanziStage === "done" ? "五关通关！送你一颗闪亮星星！" : "最后一关，大声说出来吧！"} /><span className="stage-emoji">{hanziStage === "done" ? "🏆" : "🗣️"}</span><span className="kicker">第五关 · 说一说</span><h2>{currentChar.sentence}</h2><p>先听一遍，再点击挑战并大声跟读</p><div className="speak-actions"><button className="listen-sentence" onClick={() => speak(currentChar.sentence)}>🔊 听句子</button><button className={`say-challenge ${sayPracticed ? "ready" : ""}`} disabled={sayCountdown > 0 || hanziStage === "done"} onClick={startSayChallenge}>{sayPracticed ? "✓ 跟读完成" : sayCountdown > 0 ? `${sayCountdown}… 大声说` : "🎙️ 开始跟读"}</button></div><button className="primary" disabled={!sayPracticed || hanziStage === "done"} onClick={completeCharacter}>{hanziStage === "done" ? "✓ 五关全部完成" : sayPracticed ? "领取星星，学习下一个字 →" : "完成跟读后领取星星"}</button>{hanziStage === "done" && <div className="star-burst" aria-hidden="true">⭐ ✨ ⭐ ✨ ⭐</div>}</article>}
+          {(hanziStage === "speak" || hanziStage === "done") && <article className={`stage-card speak-stage ${hanziStage === "done" ? "completed-card celebration" : ""}`}><MascotGuide name="钺钺兔和虎教练" text={hanziStage === "done" ? "五关通关！送你一颗闪亮星星！" : "最后一关，大声说出来吧！"} /><span className="stage-emoji">{hanziStage === "done" ? "🏆" : "🗣️"}</span><span className="kicker">第五关 · 说一说</span><h2>{currentChar.sentence}</h2><p>先听一遍，再点击挑战并大声跟读</p><div className="speak-actions"><button className="listen-sentence" onClick={() => speak(currentChar.sentence)}>🔊 听句子</button><button className={`say-challenge ${sayPracticed ? "ready" : ""}`} disabled={sayCountdown > 0 || hanziStage === "done"} onClick={startSayChallenge}>{sayPracticed ? "✓ 跟读完成" : sayCountdown > 0 ? `${sayCountdown}… 大声说` : "🎙️ 开始跟读"}</button></div><button className="primary" disabled={!sayPracticed || hanziStage === "done"} onClick={completeCharacter}>{hanziStage === "done" ? "✓ 五关全部完成" : sayPracticed ? "领取星星，学习下一个字 →" : "完成跟读后领取星星"}</button>{hanziStage === "done" && <div className="star-burst" aria-hidden="true">⭐ ✨ ⭐ ✨ ⭐</div>}</article>}
         </div>
         <div className="lesson-switch">{hanziLessons.map((items, i) => <button key={i} className={lesson === i ? "active" : ""} onClick={() => { setLesson(i); setCharIndex(0); setHanziStage("play"); setSayPracticed(false); setSayCountdown(0); setFeedback(""); }}>第 {i + 1} 课 <small>{items.map((x) => x.char).join(" · ")}</small></button>)}</div>
       </>}
@@ -408,7 +409,7 @@ export default function Home() {
       {mode === "rewards" && <ParentCenter stars={stars} setStars={setStars} learned={learned.length} />}
     </section>}
     {feedback && <div className="feedback" role="status" aria-live="polite">{feedback}</div>}
-    <footer><span>🌱 小芽学习屋</span><b>永久免费 · 无广告 · 数据保存在本机</b></footer>
+    <footer><span>🌱 小钺钺学习屋</span><b>永久免费 · 无广告 · 数据保存在本机</b></footer>
   </main>;
 }
 
@@ -425,7 +426,7 @@ function HomeScreen({ stars, learned, installed, go, customTasks, doneTasks, tas
     }).format(new Date()));
   }, []);
   return <>
-    <section className="home-hero"><div><span className="date-pill">🌤️ {date} · 一年级基础版</span><h1>出发吧，小小探索家！</h1><p>和小芽兔、虎教练一起，玩着学会100个字。</p><div className="hero-badges"><span>已认识 <b>{learned}</b>/100 个字</span><span>收集 <b>{stars}</b> 颗星</span></div></div><div className="mascot mascot-duo" aria-hidden="true"><img src="/mascot-duo.png" alt="" /><i>今天一起闯关吧！</i></div></section>
+    <section className="home-hero"><div><span className="date-pill">🌤️ {date} · 一年级基础版</span><h1>出发吧，小小探索家！</h1><p>和钺钺兔、虎教练一起，玩着学会100个字。</p><div className="hero-badges"><span>已认识 <b>{learned}</b>/100 个字</span><span>收集 <b>{stars}</b> 颗星</span></div></div><div className="mascot mascot-duo" aria-hidden="true"><img src="/mascot-duo.png" alt="" /><i>今天一起闯关吧！</i></div></section>
     {!installed && <section className="install-tip"><span>📲</span><div><b>装到 iPad 主屏幕</b><p>Safari 打开后，点“分享” →“添加到主屏幕”→ 打开“作为网页 App”。</p></div></section>}
     <section className="islands"><div className="section-title"><div><small>TODAY&apos;S ADVENTURE</small><h2>今日学习冒险</h2></div><span>每次答对都能获得 ⭐</span></div>
       <div className="course-grid">
@@ -453,7 +454,7 @@ function QuizFrame({ icon, label, title, instruction, choices, onAnswer, busy = 
 }
 
 function MascotGuide({ name, text }: { name: string; text: string }) {
-  return <div className="mascot-guide"><img src="/mascot-duo.png" alt="小芽兔和虎教练" /><div><b>{name}</b><span>{text}</span></div></div>;
+  return <div className="mascot-guide"><img src="/mascot-duo.png" alt="钺钺兔和虎教练" /><div><b>{name}</b><span>{text}</span></div></div>;
 }
 
 function TracePad({ character, active, onComplete }: { character: string; active: boolean; onComplete: () => void }) {
@@ -467,7 +468,7 @@ function TracePad({ character, active, onComplete }: { character: string; active
   function start(event: PointerEvent<HTMLCanvasElement>) { if (!active) return; drawing.current = true; setHasInk(true); event.currentTarget.setPointerCapture(event.pointerId); const p = point(event); const ctx = canvasRef.current?.getContext("2d"); if (p && ctx) { ctx.beginPath(); ctx.moveTo(p.x, p.y); } }
   function move(event: PointerEvent<HTMLCanvasElement>) { if (!drawing.current) return; const p = point(event); const ctx = canvasRef.current?.getContext("2d"); if (p && ctx) { ctx.lineWidth = 14; ctx.lineCap = "round"; ctx.strokeStyle = "#f27848"; ctx.lineTo(p.x, p.y); ctx.stroke(); } }
   function clear() { const canvas = canvasRef.current; canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height); setHasInk(false); }
-  return <article className="trace-card active"><MascotGuide name="小芽兔" text="沿着灰色字描一描，我来陪你写！" /><div className="trace-heading"><h2>第四关 · 写一写“{character}”</h2><button disabled={!hasInk} onClick={clear}>擦除重写</button></div><div className="trace-box"><span>{character}</span><canvas aria-label={`在田字格中描写“${character}”`} ref={canvasRef} width="420" height="420" onPointerDown={start} onPointerMove={move} onPointerUp={() => drawing.current = false} onPointerCancel={() => drawing.current = false} /></div><p>{hasInk ? "写得真认真！确认后去挑战说一说" : "用手指沿着灰色字描一描"}</p><button className="confirm-write" disabled={!hasInk} onClick={onComplete}>{hasInk ? "写好了，确认完成 →" : "请先写一写"}</button></article>;
+  return <article className="trace-card active"><MascotGuide name="钺钺兔" text="沿着灰色字描一描，我来陪你写！" /><div className="trace-heading"><h2>第四关 · 写一写“{character}”</h2><button disabled={!hasInk} onClick={clear}>擦除重写</button></div><div className="trace-box"><span>{character}</span><canvas aria-label={`在田字格中描写“${character}”`} ref={canvasRef} width="420" height="420" onPointerDown={start} onPointerMove={move} onPointerUp={() => drawing.current = false} onPointerCancel={() => drawing.current = false} /></div><p>{hasInk ? "写得真认真！确认后去挑战说一说" : "用手指沿着灰色字描一描"}</p><button className="confirm-write" disabled={!hasInk} onClick={onComplete}>{hasInk ? "写好了，确认完成 →" : "请先写一写"}</button></article>;
 }
 
 function ParentCenter({ stars, setStars, learned }: { stars: number; setStars: (change: (value: number) => number) => void; learned: number }) {

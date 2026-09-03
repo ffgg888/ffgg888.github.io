@@ -9,13 +9,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   return {
     metadataBase: new URL(`${protocol}://${host}`),
-    title: "小芽学习屋｜免费幼小衔接学习平台",
+    title: "小钺钺学习屋｜免费幼小衔接学习平台",
     description: "永久免费、无广告的儿童识字、拼音、数学、英语和古诗互动学习平台，可安装到 iPad。",
     manifest: "/manifest.webmanifest",
-    appleWebApp: { capable: true, statusBarStyle: "default", title: "小芽学习屋" },
+    appleWebApp: { capable: true, statusBarStyle: "default", title: "小钺钺学习屋" },
     icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
-    openGraph: { title: "小芽学习屋｜免费幼小衔接学习平台", description: "识字、拼音、数学、英语、古诗，免费学。", images: ["/og.png"] },
-    twitter: { card: "summary_large_image", title: "小芽学习屋｜免费幼小衔接学习平台", description: "识字、拼音、数学、英语、古诗，免费学。", images: ["/og.png"] },
+    openGraph: { title: "小钺钺学习屋｜免费幼小衔接学习平台", description: "识字、拼音、数学、英语、古诗，免费学。" },
+    twitter: { card: "summary", title: "小钺钺学习屋｜免费幼小衔接学习平台", description: "识字、拼音、数学、英语、古诗，免费学。" },
   };
 }
 
