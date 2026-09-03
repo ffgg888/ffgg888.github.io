@@ -3,6 +3,7 @@
 import { FormEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Mode = "home" | "hanzi" | "review" | "pinyin" | "math" | "english" | "reading" | "rewards";
+type HanziStage = "play" | "learn" | "practice" | "write" | "speak" | "done";
 type Hanzi = { char: string; pinyin: string; word: string; sentence: string; icon: string };
 
 const starterHanziLessons: Hanzi[][] = [
@@ -136,6 +137,11 @@ const idioms = [
 const rewards = [{ name: "美味小零食", stars: 10, icon: "🍪" }, { name: "心愿小玩具", stars: 20, icon: "🧸" }, { name: "儿童乐园", stars: 30, icon: "🎡" }];
 const storeKey = "xiaoya-free-learning-v2";
 
+function localDateKey() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function shuffle<T>(items: T[]) { return [...items].sort(() => Math.random() - 0.5); }
 function speak(text: string, lang = "zh-CN") {
   if (!("speechSynthesis" in window)) return;
@@ -151,6 +157,7 @@ export default function Home() {
   const [learned, setLearned] = useState<string[]>([]);
   const [lesson, setLesson] = useState(0);
   const [charIndex, setCharIndex] = useState(0);
+  const [hanziStage, setHanziStage] = useState<HanziStage>("play");
   const [reviewIndex, setReviewIndex] = useState(0);
   const [pinyinIndex, setPinyinIndex] = useState(0);
   const [mathIndex, setMathIndex] = useState(0);
@@ -160,10 +167,25 @@ export default function Home() {
   const [customTasks, setCustomTasks] = useState<string[]>([]);
   const [taskText, setTaskText] = useState("");
   const [doneTasks, setDoneTasks] = useState<string[]>([]);
+  const [attendanceDate, setAttendanceDate] = useState("");
   const [installed, setInstalled] = useState(false);
   const [ready, setReady] = useState(false);
 
   const currentChar = hanziLessons[lesson][charIndex];
+  const currentGlobalIndex = lesson * 10 + charIndex;
+  const stageDistractors = allGradeOneHanzi.filter((item) => item.char !== currentChar.char);
+  const playChoices = [
+    currentChar.char,
+    stageDistractors[(currentGlobalIndex * 3 + 11) % stageDistractors.length].char,
+    stageDistractors[(currentGlobalIndex * 7 + 23) % stageDistractors.length].char,
+  ];
+  playChoices.unshift(...playChoices.splice(currentGlobalIndex % playChoices.length));
+  const practiceChoices = [
+    currentChar.word,
+    stageDistractors[(currentGlobalIndex * 5 + 17) % stageDistractors.length].word,
+    stageDistractors[(currentGlobalIndex * 9 + 31) % stageDistractors.length].word,
+  ];
+  practiceChoices.unshift(...practiceChoices.splice((currentGlobalIndex + 1) % practiceChoices.length));
   const reviewPool = learned.length
     ? allGradeOneHanzi.filter((item) => learned.includes(item.char))
     : allGradeOneHanzi.slice(0, 10);
@@ -186,8 +208,11 @@ export default function Home() {
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(storeKey) || "{}");
+      // This one-time hydration restores the child's local-only profile.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStars(saved.stars || 0); setLearned(saved.learned || []);
       setCustomTasks(saved.customTasks || []); setDoneTasks(saved.doneTasks || []);
+      setAttendanceDate(saved.attendanceDate || "");
     } catch { /* Begin with a fresh local profile. */ }
     const initialCards = shuffle(englishWords).slice(0, 6);
     setEnglishCards(initialCards);
@@ -198,35 +223,89 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (ready) localStorage.setItem(storeKey, JSON.stringify({ stars, learned, customTasks, doneTasks }));
-  }, [stars, learned, customTasks, doneTasks, ready]);
+    if (ready) localStorage.setItem(storeKey, JSON.stringify({ stars, learned, customTasks, doneTasks, attendanceDate }));
+  }, [stars, learned, customTasks, doneTasks, attendanceDate, ready]);
 
   function go(next: Mode) { setFeedback(""); setMode(next); window.scrollTo({ top: 0, behavior: "smooth" }); }
   function reward(message: string, amount = 1) { setStars((value) => value + amount); setFeedback(`${message}  +${amount} ⭐`); }
-  function nextChar() {
-    if (!learned.includes(currentChar.char)) { setLearned((items) => [...items, currentChar.char]); reward("学会一个新字！"); }
-    else setFeedback("这个字已经学会啦 ✓");
-    window.setTimeout(() => { setFeedback(""); setCharIndex((index) => (index + 1) % hanziLessons[lesson].length); }, 850);
+  function answerPlay(choice: string) {
+    if (feedback || hanziStage !== "play") return;
+    if (choice === currentChar.char) {
+      setFeedback("找对啦！来认识它 👀");
+      setHanziStage("learn");
+    } else setFeedback("再找找，看看图和词语");
+    window.setTimeout(() => setFeedback(""), 850);
+  }
+  function finishLearning() {
+    if (hanziStage !== "learn") return;
+    setHanziStage("practice");
+    setFeedback("认识了！下面来练一练 🎯");
+    window.setTimeout(() => setFeedback(""), 850);
+  }
+  function answerPractice(choice: string) {
+    if (feedback || hanziStage !== "practice") return;
+    if (choice === currentChar.word) {
+      setFeedback("选对词语啦！现在写一写 ✍️");
+      setHanziStage("write");
+    } else setFeedback(`再想想，“${currentChar.char}”能组成哪个词？`);
+    window.setTimeout(() => setFeedback(""), 950);
+  }
+  function finishWriting() {
+    if (hanziStage !== "write") return;
+    setHanziStage("speak");
+    setFeedback("写好啦！最后大声说一句 🗣️");
+    window.setTimeout(() => setFeedback(""), 900);
+  }
+  function completeCharacter() {
+    if (hanziStage !== "speak") return;
+    setHanziStage("done");
+    const firstTime = !learned.includes(currentChar.char);
+    if (firstTime) {
+      setLearned((items) => [...items, currentChar.char]);
+      reward("认读和书写都完成啦！");
+    } else setFeedback("又认真练习了一遍 ✓");
+    const isLastCharacter = charIndex === hanziLessons[lesson].length - 1;
+    const nextLesson = isLastCharacter ? (lesson + 1) % hanziLessons.length : lesson;
+    window.setTimeout(() => {
+      setFeedback("");
+      setLesson(nextLesson);
+      setCharIndex(isLastCharacter ? 0 : charIndex + 1);
+      setHanziStage("play");
+    }, 1050);
   }
   function answerPinyin(choice: string) {
     if (feedback) return;
     const right = choice === pinyinQuestions[pinyinIndex].answer;
-    if (right) reward("拼对啦！"); else setFeedback(`再读一遍：${pinyinQuestions[pinyinIndex].answer}`);
-    window.setTimeout(() => { setFeedback(""); setPinyinIndex((i) => (i + 1) % pinyinQuestions.length); }, 1000);
+    if (right) {
+      reward("拼对啦！");
+      window.setTimeout(() => { setFeedback(""); setPinyinIndex((i) => (i + 1) % pinyinQuestions.length); }, 1000);
+    } else {
+      setFeedback(`再读一遍：${pinyinQuestions[pinyinIndex].answer}`);
+      window.setTimeout(() => setFeedback(""), 1100);
+    }
   }
   function answerMath(choice: number) {
     if (feedback) return;
-    if (choice === mathQuestions[mathIndex].answer) reward("算对啦！"); else setFeedback("再数一数，你可以的");
-    window.setTimeout(() => { setFeedback(""); setMathIndex((i) => (i + 1) % mathQuestions.length); }, 900);
+    if (choice === mathQuestions[mathIndex].answer) {
+      reward("算对啦！");
+      window.setTimeout(() => { setFeedback(""); setMathIndex((i) => (i + 1) % mathQuestions.length); }, 900);
+    } else {
+      setFeedback("再数一数，你可以的");
+      window.setTimeout(() => setFeedback(""), 950);
+    }
   }
   function answerReview(choice: string) {
     if (feedback) return;
-    if (choice === reviewChar.char) reward("复习答对啦！");
-    else setFeedback(`再想一想，正确答案是“${reviewChar.char}”`);
-    window.setTimeout(() => {
-      setFeedback("");
-      setReviewIndex((index) => (index + 1) % reviewPool.length);
-    }, 950);
+    if (choice === reviewChar.char) {
+      reward("复习答对啦！");
+      window.setTimeout(() => {
+        setFeedback("");
+        setReviewIndex((index) => (index + 1) % reviewPool.length);
+      }, 950);
+    } else {
+      setFeedback(`再想一想，正确答案是“${reviewChar.char}”`);
+      window.setTimeout(() => setFeedback(""), 1100);
+    }
   }
   function catchWord(word: typeof englishWords[number]) {
     if (feedback) return;
@@ -238,7 +317,30 @@ export default function Home() {
       }, 900);
     } else { setFeedback("不是这只，再找找 👀"); window.setTimeout(() => setFeedback(""), 700); }
   }
-  function addTask(event: FormEvent) { event.preventDefault(); const value = taskText.trim(); if (!value) return; setCustomTasks((items) => [...items, value]); setTaskText(""); }
+  function addTask(event: FormEvent) {
+    event.preventDefault();
+    const value = taskText.trim();
+    if (!value) return;
+    if (customTasks.includes(value)) {
+      setFeedback("这个任务已经添加过啦");
+      window.setTimeout(() => setFeedback(""), 1000);
+      return;
+    }
+    setCustomTasks((items) => [...items, value]);
+    setTaskText("");
+  }
+  function toggleTask(task: string) {
+    const wasDone = doneTasks.includes(task);
+    const next = wasDone ? doneTasks.filter((item) => item !== task) : [...doneTasks, task];
+    setDoneTasks(next);
+    const allDone = customTasks.length > 0 && customTasks.every((item) => next.includes(item));
+    const today = localDateKey();
+    if (!wasDone && allDone && attendanceDate !== today) {
+      setAttendanceDate(today);
+      reward("今日任务全勤！");
+      window.setTimeout(() => setFeedback(""), 1300);
+    }
+  }
 
   return <main className="app-shell">
     <header className="topbar">
@@ -251,24 +353,28 @@ export default function Home() {
       <button className="stars" onClick={() => go("rewards")}><span>⭐</span><b>{stars}</b></button>
     </header>
 
-    {mode === "home" && <HomeScreen stars={stars} learned={learned.length} installed={installed} go={go} customTasks={customTasks} doneTasks={doneTasks} taskText={taskText} setTaskText={setTaskText} addTask={addTask} toggleTask={(task) => setDoneTasks((items) => items.includes(task) ? items.filter((x) => x !== task) : [...items, task])} removeTask={(task) => { setCustomTasks((items) => items.filter((x) => x !== task)); setDoneTasks((items) => items.filter((x) => x !== task)); }} />}
+    {mode === "home" && <HomeScreen stars={stars} learned={learned.length} installed={installed} go={go} customTasks={customTasks} doneTasks={doneTasks} taskText={taskText} setTaskText={setTaskText} addTask={addTask} toggleTask={toggleTask} attendanceComplete={attendanceDate === localDateKey()} removeTask={(task) => { setCustomTasks((items) => items.filter((x) => x !== task)); setDoneTasks((items) => items.filter((x) => x !== task)); }} />}
 
     {mode !== "home" && <section className="lesson-shell">
       <button className="back" onClick={() => go("home")}>← 返回学习岛</button>
       {mode === "hanzi" && <>
-        <div className="lesson-top"><div><span className="kicker">一年级识字 · 第 {lesson + 1} 课 · 每课10字</span><h1>听一听，认一认，写一写</h1></div><div className="step-dots">{hanziLessons[lesson].map((_, i) => <span className={i <= charIndex ? "on" : ""} key={i} />)}</div></div>
-        <div className="hanzi-layout">
-          <article className="learn-card"><span className="scene-icon">{currentChar.icon}</span><button className="sound" onClick={() => speak(`${currentChar.char}，${currentChar.word}。${currentChar.sentence}`)}>🔊 点我朗读</button><div className="big-char">{currentChar.char}</div><div className="char-pinyin">{currentChar.pinyin}</div><b>{currentChar.word}</b><p>{currentChar.sentence}</p><button className="primary" onClick={nextChar}>我认识了</button></article>
-          <TracePad character={currentChar.char} />
+        <div className="lesson-top"><div><span className="kicker">一年级识字 · 第 {lesson + 1} 课 · 第 {charIndex + 1}/10 字</span><h1>玩、认、练、写、说，闯过五关</h1></div><div className="step-dots" aria-label={`本课进度 ${charIndex + 1}/10`}>{hanziLessons[lesson].map((_, i) => <span className={i <= charIndex ? "on" : ""} key={i} />)}</div></div>
+        <div className="learning-steps" aria-label="识字步骤">{([['play','玩一玩'],['learn','认一认'],['practice','练一练'],['write','写一写'],['speak','说一说']] as [HanziStage,string][]).map(([key, label], index) => { const order = ["play", "learn", "practice", "write", "speak", "done"]; const currentOrder = order.indexOf(hanziStage); return <span key={key} className={hanziStage === key ? "active" : currentOrder > index ? "complete" : ""}>{index + 1} {label}</span>; })}</div>
+        <div className="hanzi-stage-wrap">
+          {hanziStage === "play" && <article className="stage-card game-stage"><span className="stage-emoji">{currentChar.icon}</span><span className="kicker">玩一玩</span><h2>帮小芽找到“{currentChar.word}”里的字</h2><div className="character-choices">{playChoices.map((choice) => <button key={choice} disabled={Boolean(feedback)} onClick={() => answerPlay(choice)}>{choice}</button>)}</div><p>看一看图片和词语，点出正确的汉字</p></article>}
+          {hanziStage === "learn" && <article className="learn-card stage-card"><span className="scene-icon">{currentChar.icon}</span><button className="sound" onClick={() => speak(`${currentChar.char}，${currentChar.word}。${currentChar.sentence}`)}>🔊 点我朗读</button><div className="big-char">{currentChar.char}</div><div className="char-pinyin">{currentChar.pinyin}</div><b>{currentChar.word}</b><p>{currentChar.sentence}</p><button className="primary" onClick={finishLearning}>我认识了，去练一练 →</button></article>}
+          {hanziStage === "practice" && <article className="stage-card practice-stage"><span className="kicker">练一练</span><div className="practice-char">{currentChar.char}</div><h2>“{currentChar.char}”可以组成哪个词？</h2><div className="word-choices">{practiceChoices.map((choice) => <button key={choice} disabled={Boolean(feedback)} onClick={() => answerPractice(choice)}>{choice}</button>)}</div></article>}
+          {(hanziStage === "write") && <TracePad character={currentChar.char} active onComplete={finishWriting} />}
+          {(hanziStage === "speak" || hanziStage === "done") && <article className={`stage-card speak-stage ${hanziStage === "done" ? "completed-card" : ""}`}><span className="stage-emoji">🗣️</span><span className="kicker">说一说</span><h2>{currentChar.sentence}</h2><p>先听一遍，再大声跟着说</p><button className="listen-sentence" onClick={() => speak(currentChar.sentence)}>🔊 听句子</button><button className="primary" disabled={hanziStage === "done"} onClick={completeCharacter}>{hanziStage === "done" ? "✓ 五关全部完成" : "我会说了，完成这个字 →"}</button></article>}
         </div>
-        <div className="lesson-switch">{hanziLessons.map((items, i) => <button key={i} className={lesson === i ? "active" : ""} onClick={() => { setLesson(i); setCharIndex(0); setFeedback(""); }}>第 {i + 1} 课 <small>{items.map((x) => x.char).join(" · ")}</small></button>)}</div>
+        <div className="lesson-switch">{hanziLessons.map((items, i) => <button key={i} className={lesson === i ? "active" : ""} onClick={() => { setLesson(i); setCharIndex(0); setHanziStage("play"); setFeedback(""); }}>第 {i + 1} 课 <small>{items.map((x) => x.char).join(" · ")}</small></button>)}</div>
       </>}
-      {mode === "review" && <QuizFrame icon={reviewChar.icon} label={`一年级复习 · 第 ${reviewIndex + 1} 题`} title={`${reviewChar.pinyin} · ${reviewChar.word}`} instruction={learned.length ? "找出今天学过的汉字" : "先试试第一课的基础汉字"} choices={reviewChoices} onAnswer={answerReview} />}
-      {mode === "pinyin" && <QuizFrame icon={pinyinQuestions[pinyinIndex].icon} label={`拼音对对碰 · ${pinyinIndex + 1}/${pinyinQuestions.length}`} title={pinyinQuestions[pinyinIndex].prompt} instruction="找出正确的拼音" choices={pinyinQuestions[pinyinIndex].choices} onAnswer={answerPinyin} />}
-      {mode === "math" && <QuizFrame icon={mathQuestions[mathIndex].icon} label={`数学能量站 · ${mathIndex + 1}/${mathQuestions.length}`} title={`${mathQuestions[mathIndex].text} = ?`} instruction="动动小脑筋，选出答案" choices={mathQuestions[mathIndex].choices.map(String)} onAnswer={(answer) => answerMath(Number(answer))} />}
+      {mode === "review" && <QuizFrame icon={reviewChar.icon} label={`一年级复习 · 第 ${reviewIndex + 1} 题`} title={`${reviewChar.pinyin} · ${reviewChar.word}`} instruction={learned.length ? "找出今天学过的汉字" : "先试试第一课的基础汉字"} choices={reviewChoices} onAnswer={answerReview} busy={Boolean(feedback)} />}
+      {mode === "pinyin" && <QuizFrame icon={pinyinQuestions[pinyinIndex].icon} label={`拼音对对碰 · ${pinyinIndex + 1}/${pinyinQuestions.length}`} title={pinyinQuestions[pinyinIndex].prompt} instruction="找出正确的拼音" choices={pinyinQuestions[pinyinIndex].choices} onAnswer={answerPinyin} busy={Boolean(feedback)} />}
+      {mode === "math" && <QuizFrame icon={mathQuestions[mathIndex].icon} label={`数学能量站 · ${mathIndex + 1}/${mathQuestions.length}`} title={`${mathQuestions[mathIndex].text} = ?`} instruction="动动小脑筋，选出答案" choices={mathQuestions[mathIndex].choices.map(String)} onAnswer={(answer) => answerMath(Number(answer))} busy={Boolean(feedback)} />}
       {mode === "english" && <>
         <div className="lesson-top"><div><span className="kicker">ENGLISH GAME</span><h1>英语单词抓大鹅</h1></div></div>
-        <article className="goose-stage"><button className="target-word" onClick={() => speak(englishTarget.en, "en-US")}><small>请抓住“{englishTarget.zh}”</small><b>{englishTarget.en}</b><span>🔊 听发音</span></button><div className="goose-grid">{englishCards.map((word) => <button key={word.en} onClick={() => catchWord(word)}><span>{word.icon}</span><b>{word.en}</b><small>🪿</small></button>)}</div></article>
+        <article className="goose-stage"><button className="target-word" onClick={() => speak(englishTarget.en, "en-US")}><small>请抓住“{englishTarget.zh}”</small><b>{englishTarget.en}</b><span>🔊 听发音</span></button><div className="goose-grid">{englishCards.map((word) => <button key={word.en} disabled={Boolean(feedback)} onClick={() => catchWord(word)}><span>{word.icon}</span><b>{word.en}</b><small>🪿</small></button>)}</div></article>
       </>}
       {mode === "reading" && <>
         <div className="lesson-top"><div><span className="kicker">一年级阅读与国学</span><h1>古诗与成语馆</h1><p>先听一遍，再跟着大声读，并试着说说意思。</p></div></div>
@@ -277,17 +383,18 @@ export default function Home() {
         <div className="poem-grid">{idioms.map((item) => <article className="poem-card" key={item.title}><span>{item.icon}</span><h2>{item.title}</h2><p>{item.meaning}</p><small>{item.example}</small><button onClick={() => speak(`${item.title}。${item.meaning}${item.example}`)}>🔊 听成语</button></article>)}</div>
       </>}
       {mode === "rewards" && <ParentCenter stars={stars} setStars={setStars} learned={learned.length} />}
-      {feedback && <div className="feedback" role="status">{feedback}</div>}
     </section>}
+    {feedback && <div className="feedback" role="status" aria-live="polite">{feedback}</div>}
     <footer><span>🌱 小芽学习屋</span><b>永久免费 · 无广告 · 数据保存在本机</b></footer>
   </main>;
 }
 
-function HomeScreen({ stars, learned, installed, go, customTasks, doneTasks, taskText, setTaskText, addTask, toggleTask, removeTask }: { stars: number; learned: number; installed: boolean; go: (mode: Mode) => void; customTasks: string[]; doneTasks: string[]; taskText: string; setTaskText: (value: string) => void; addTask: (event: FormEvent) => void; toggleTask: (task: string) => void; removeTask: (task: string) => void }) {
+function HomeScreen({ stars, learned, installed, go, customTasks, doneTasks, taskText, setTaskText, addTask, toggleTask, removeTask, attendanceComplete }: { stars: number; learned: number; installed: boolean; go: (mode: Mode) => void; customTasks: string[]; doneTasks: string[]; taskText: string; setTaskText: (value: string) => void; addTask: (event: FormEvent) => void; toggleTask: (task: string) => void; removeTask: (task: string) => void; attendanceComplete: boolean }) {
   // Format the date after hydration so WebKit and the server cannot disagree
   // about locale spacing or timezone and trigger React's error overlay.
   const [date, setDate] = useState("今天");
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDate(new Intl.DateTimeFormat("zh-CN", {
       month: "long",
       day: "numeric",
@@ -299,7 +406,7 @@ function HomeScreen({ stars, learned, installed, go, customTasks, doneTasks, tas
     {!installed && <section className="install-tip"><span>📲</span><div><b>装到 iPad 主屏幕</b><p>Safari 打开后，点“分享” →“添加到主屏幕”→ 打开“作为网页 App”。</p></div></section>}
     <section className="islands"><div className="section-title"><div><small>TODAY&apos;S ADVENTURE</small><h2>今日学习冒险</h2></div><span>每次答对都能获得 ⭐</span></div>
       <div className="course-grid">
-        <CourseCard color="coral" icon="字" title="一年级识字" note="100字 · 每日10字 · 描红" progress={`${learned}/100`} onClick={() => go("hanzi")} featured />
+        <CourseCard color="coral" icon="字" title="一年级识字" note="100字 · 玩认练写说" progress={`${learned}/100`} onClick={() => go("hanzi")} featured />
         <CourseCard color="green" icon="✓" title="复习小测" note="拼音 · 词语 · 认字" progress={learned ? `${learned}字` : "第一课"} onClick={() => go("review")} />
         <CourseCard color="blue" icon="ɑ" title="拼音城堡" note="听音 · 拼读 · 对对碰" progress="5关" onClick={() => go("pinyin")} />
         <CourseCard color="yellow" icon="＋" title="数学能量站" note="20以内加减法" progress="5题" onClick={() => go("math")} />
@@ -307,9 +414,9 @@ function HomeScreen({ stars, learned, installed, go, customTasks, doneTasks, tas
         <CourseCard color="purple" icon="诗" title="古诗与成语馆" note="8首古诗 · 8个成语" progress="16篇" onClick={() => go("reading")} />
       </div>
     </section>
-    <section className="daily-box"><div className="daily-heading"><div><span>✅</span><div><h2>我的每日任务</h2><p>完成后点一下，养成好习惯</p></div></div><b>{doneTasks.length}/{customTasks.length}</b></div>
+    <section className="daily-box"><div className="daily-heading"><div><span>✅</span><div><h2>我的每日任务</h2><p>{attendanceComplete ? "今日已全勤，明天继续加油" : "全部完成可得 1 颗星"}</p></div></div><b>{attendanceComplete ? "已全勤 ⭐" : `${doneTasks.length}/${customTasks.length}`}</b></div>
       <form onSubmit={addTask}><input value={taskText} onChange={(e) => setTaskText(e.target.value)} placeholder="添加任务，如：朗读绘本10分钟" maxLength={28} /><button>添加</button></form>
-      {customTasks.length ? <div className="personal-tasks">{customTasks.map((task) => <div key={task} className={doneTasks.includes(task) ? "done" : ""}><button onClick={() => toggleTask(task)}>{doneTasks.includes(task) ? "✓" : ""}</button><span>{task}</span><button onClick={() => removeTask(task)}>×</button></div>)}</div> : <p className="empty">还没有自定义任务，先加一个吧。</p>}
+      {customTasks.length ? <div className="personal-tasks">{customTasks.map((task) => <div key={task} className={doneTasks.includes(task) ? "done" : ""}><button aria-label={`${doneTasks.includes(task) ? "取消完成" : "完成"}任务：${task}`} onClick={() => toggleTask(task)}>{doneTasks.includes(task) ? "✓" : ""}</button><span>{task}</span><button aria-label={`删除任务：${task}`} onClick={() => removeTask(task)}>×</button></div>)}</div> : <p className="empty">还没有自定义任务，先加一个吧。</p>}
     </section>
   </>;
 }
@@ -318,21 +425,22 @@ function CourseCard({ color, icon, title, note, progress, onClick, featured = fa
   return <button className={`course-card ${color} ${featured ? "featured" : ""}`} onClick={onClick}><span className="course-icon">{icon}</span><span className="course-copy"><small>{progress}</small><b>{title}</b><em>{note}</em></span><span className="course-go">开始学习 →</span></button>;
 }
 
-function QuizFrame({ icon, label, title, instruction, choices, onAnswer }: { icon: string; label: string; title: string; instruction: string; choices: string[]; onAnswer: (answer: string) => void }) {
-  return <article className="quiz-card"><span className="kicker">{label}</span><p>{instruction}</p><div className="quiz-prompt"><span>{icon}</span><b>{title}</b></div><div className="quiz-choices">{choices.map((choice) => <button key={choice} onClick={() => onAnswer(choice)}>{choice}</button>)}</div></article>;
+function QuizFrame({ icon, label, title, instruction, choices, onAnswer, busy = false }: { icon: string; label: string; title: string; instruction: string; choices: string[]; onAnswer: (answer: string) => void; busy?: boolean }) {
+  return <article className="quiz-card"><span className="kicker">{label}</span><p>{instruction}</p><div className="quiz-prompt"><span>{icon}</span><b>{title}</b></div><div className="quiz-choices">{choices.map((choice) => <button key={choice} disabled={busy} onClick={() => onAnswer(choice)}>{choice}</button>)}</div></article>;
 }
 
-function TracePad({ character }: { character: string }) {
+function TracePad({ character, active, onComplete }: { character: string; active: boolean; onComplete: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
+  const [hasInk, setHasInk] = useState(false);
   function point(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current; if (!canvas) return; const rect = canvas.getBoundingClientRect();
     return { x: (event.clientX - rect.left) * (canvas.width / rect.width), y: (event.clientY - rect.top) * (canvas.height / rect.height) };
   }
-  function start(event: PointerEvent<HTMLCanvasElement>) { drawing.current = true; event.currentTarget.setPointerCapture(event.pointerId); const p = point(event); const ctx = canvasRef.current?.getContext("2d"); if (p && ctx) { ctx.beginPath(); ctx.moveTo(p.x, p.y); } }
+  function start(event: PointerEvent<HTMLCanvasElement>) { if (!active) return; drawing.current = true; setHasInk(true); event.currentTarget.setPointerCapture(event.pointerId); const p = point(event); const ctx = canvasRef.current?.getContext("2d"); if (p && ctx) { ctx.beginPath(); ctx.moveTo(p.x, p.y); } }
   function move(event: PointerEvent<HTMLCanvasElement>) { if (!drawing.current) return; const p = point(event); const ctx = canvasRef.current?.getContext("2d"); if (p && ctx) { ctx.lineWidth = 14; ctx.lineCap = "round"; ctx.strokeStyle = "#f27848"; ctx.lineTo(p.x, p.y); ctx.stroke(); } }
-  function clear() { const canvas = canvasRef.current; canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height); }
-  return <article className="trace-card"><div><h2>我来写一写</h2><button onClick={clear}>擦除重写</button></div><div className="trace-box"><span>{character}</span><canvas ref={canvasRef} width="420" height="420" onPointerDown={start} onPointerMove={move} onPointerUp={() => drawing.current = false} onPointerCancel={() => drawing.current = false} /></div><p>用手指沿着灰色字描一描</p></article>;
+  function clear() { const canvas = canvasRef.current; canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height); setHasInk(false); }
+  return <article className="trace-card active"><div><h2>写一写“{character}”</h2><button disabled={!hasInk} onClick={clear}>擦除重写</button></div><div className="trace-box"><span>{character}</span><canvas aria-label={`在田字格中描写“${character}”`} ref={canvasRef} width="420" height="420" onPointerDown={start} onPointerMove={move} onPointerUp={() => drawing.current = false} onPointerCancel={() => drawing.current = false} /></div><p>用手指沿着灰色字描一描，写完再确认</p><button className="confirm-write" disabled={!hasInk} onClick={onComplete}>{hasInk ? "写好了，确认完成 →" : "请先写一写"}</button></article>;
 }
 
 function ParentCenter({ stars, setStars, learned }: { stars: number; setStars: (change: (value: number) => number) => void; learned: number }) {

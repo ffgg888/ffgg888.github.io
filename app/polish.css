@@ -1,0 +1,241 @@
+.learning-steps {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: -7px 0 16px;
+}
+
+.learning-steps span {
+  padding: 10px 5px;
+  border-radius: 12px;
+  background: #ebe8e1;
+  color: #969ba5;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  transition: background .2s, color .2s, transform .2s;
+}
+
+.learning-steps span.active {
+  background: #fff0e7;
+  color: #d96735;
+  box-shadow: inset 0 0 0 2px #f19a70;
+  transform: translateY(-2px);
+}
+
+.learning-steps span.complete {
+  background: #e7f7ef;
+  color: #338060;
+}
+
+.hanzi-stage-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.stage-card,
+.trace-card {
+  min-height: 510px;
+}
+
+.stage-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 25px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 13px 30px #5159640f;
+}
+
+.stage-card h2 {
+  margin: 12px 0;
+}
+
+.stage-card > p {
+  color: var(--muted);
+}
+
+.stage-emoji {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 70px;
+}
+
+.character-choices,
+.word-choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 26px 0 12px;
+}
+
+.character-choices button,
+.word-choices button {
+  min-height: 105px;
+  border: 2px solid #e8dfd5;
+  border-radius: 20px;
+  background: #fffaf5;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.character-choices button {
+  font-family: serif;
+  font-size: 54px;
+}
+
+.word-choices button {
+  min-height: 70px;
+  font-size: 20px;
+}
+
+.character-choices button:hover,
+.word-choices button:hover {
+  border-color: #ed8d60;
+  background: #fff0e6;
+  color: #d66735;
+}
+
+.character-choices button:disabled,
+.word-choices button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.practice-char {
+  font: 120px/1 serif;
+  color: var(--orange);
+}
+
+.stage-card.learn-card {
+  padding: 34px;
+}
+
+.stage-card.learn-card .big-char {
+  font-size: 150px;
+}
+
+.stage-card .primary,
+.confirm-write {
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--orange);
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.stage-card .primary:disabled,
+.confirm-write:disabled {
+  background: #ece9e2;
+  color: #9a9ea6;
+  cursor: not-allowed;
+}
+
+.trace-card.active {
+  border-color: #f19165;
+  box-shadow: 0 14px 34px #ef83552b;
+}
+
+.trace-card > div:first-child button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.trace-card > p {
+  margin: 10px 0;
+}
+
+.speak-stage.completed-card {
+  border-color: #75c9a4;
+  background: #fbfffd;
+}
+
+.listen-sentence {
+  width: min(100%, 280px);
+  min-height: 48px;
+  margin: 8px auto 24px;
+  border: 0;
+  border-radius: 99px;
+  background: #e9f8f1;
+  color: #398363;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.lesson-switch {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.quiz-choices button:disabled,
+.goose-grid button:disabled {
+  opacity: .58;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.feedback {
+  bottom: max(28px, env(safe-area-inset-bottom));
+  white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+  .learning-steps {
+    gap: 4px;
+    overflow-x: auto;
+  }
+
+  .learning-steps span {
+    min-width: 64px;
+    padding: 9px 3px;
+    font-size: 11px;
+  }
+
+  .stage-card,
+  .trace-card {
+    min-height: 0;
+  }
+
+  .stage-card {
+    padding: 24px 18px;
+  }
+
+  .character-choices,
+  .word-choices {
+    gap: 8px;
+  }
+
+  .stage-card.learn-card .big-char {
+    font-size: 120px;
+  }
+
+  .lesson-switch {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 430px) {
+  .learning-steps {
+    grid-template-columns: repeat(5, minmax(64px, 1fr));
+  }
+
+  .character-choices button {
+    min-height: 82px;
+    font-size: 44px;
+  }
+
+  .lesson-switch {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .feedback {
+    max-width: calc(100vw - 24px);
+    white-space: normal;
+    text-align: center;
+  }
+}
